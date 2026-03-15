@@ -1,0 +1,7 @@
+db/*.sqlite3
+.env
+.env.development
+.env.production
+log/
+tmp/
+.claude/settings.local.json

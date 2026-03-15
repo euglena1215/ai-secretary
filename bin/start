@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "dotenv"
+Dotenv.load(".env.#{ENV.fetch("APP_ENV", "development")}", ".env")
+require_relative "../lib/claude_executor"
+require_relative "../lib/session_store"
+require_relative "../lib/channel_router"
+require_relative "../lib/event_deduplicator"
+require_relative "../lib/pending_notification_store"
+require_relative "../lib/active_reaction_store"
+require_relative "../lib/slack_bot"
+
+claude_executor = ClaudeExecutor.new
+session_store = SessionStore.new
+channel_router = ChannelRouter.new
+event_deduplicator = EventDeduplicator.new
+pending_notification_store = PendingNotificationStore.new
+active_reaction_store = ActiveReactionStore.new
+
+bot = SlackBot.new(
+  bot_token: ENV.fetch("SLACK_BOT_TOKEN"),
+  app_token: ENV.fetch("SLACK_APP_TOKEN"),
+  claude_executor: claude_executor,
+  session_store: session_store,
+  channel_router: channel_router,
+  event_deduplicator: event_deduplicator,
+  pending_notification_store: pending_notification_store,
+  active_reaction_store: active_reaction_store
+)
+
+Signal.trap("TERM") do
+  Thread.new do
+    bot.shutdown
+    exit 0
+  end
+end
+
+bot.start

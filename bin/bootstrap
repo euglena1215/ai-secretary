@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Checking Homebrew..."
+if ! command -v brew &> /dev/null; then
+  echo "    Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+echo "==> Checking rbenv..."
+if ! command -v rbenv &> /dev/null; then
+  echo "    Installing rbenv and ruby-build..."
+  brew install rbenv ruby-build
+fi
+
+# rbenv を現在のシェルで有効化
+eval "$(rbenv init - bash)"
+
+# .zshrc に rbenv init がなければ追加
+zshrc="$HOME/.zshrc"
+if [ -f "$zshrc" ] && ! grep -q 'rbenv init' "$zshrc"; then
+  echo '    Adding rbenv init to ~/.zshrc...'
+  echo '' >> "$zshrc"
+  echo '# rbenv' >> "$zshrc"
+  echo 'eval "$(rbenv init - zsh)"' >> "$zshrc"
+elif [ ! -f "$zshrc" ]; then
+  echo '    Creating ~/.zshrc with rbenv init...'
+  echo '# rbenv' > "$zshrc"
+  echo 'eval "$(rbenv init - zsh)"' >> "$zshrc"
+fi
+
+echo "==> Checking Ruby version..."
+required_ruby=$(cat .ruby-version | tr -d '[:space:]')
+if ! rbenv versions --bare | grep -q "^${required_ruby}$"; then
+  echo "    Installing Ruby ${required_ruby}..."
+  rbenv install "$required_ruby"
+else
+  echo "    Ruby ${required_ruby} already installed"
+fi
+
+echo "==> Installing gems..."
+bundle install
+
+echo "==> Setting up .env.development..."
+if [ ! -f .env.development ]; then
+  cp .env.example .env.development
+  echo "    Created .env.development from .env.example"
+  echo "    Please edit .env.development with your Slack tokens and channel IDs"
+else
+  echo "    .env.development already exists, skipping"
+fi
+
+echo "==> Creating db directory..."
+mkdir -p db
+
+echo ""
+echo "Done! Next steps:"
+echo "  1. Edit .env.development with your Slack tokens and channel IDs"
+echo "  2. Create config/prompts/channel_1.txt with your system prompt"
+echo "  3. Run: bundle exec ruby bin/start"
