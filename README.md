@@ -189,6 +189,31 @@ SLACK_CHANNEL_2_WORKDIR=/path/to/your/project
 - `config/prompts/channel_1.txt` — 一般的な質問用のプロンプト
 - `config/prompts/channel_2.txt` — コーディング用のプロンプト
 
+## Tips: フィードバックチャンネルを作ろう
+
+AI 秘書を使っていると「こういう機能がほしい」「この挙動を変えたい」という改善要望が出てきます。そのときに便利なのが **フィードバック専用チャンネル** です。
+
+フィードバックチャンネルの System Prompt に「改善要望をヒアリングして GitHub Issue を作成し、承認されたら実装して PR を出す」という振る舞いを設定すると、AI 秘書自身が PM（プロダクトマネージャー）として動いてくれます。
+
+**フロー:**
+1. フィードバックチャンネルで「〇〇な機能がほしい」と投稿
+2. AI 秘書が要件をヒアリング（不明点を質問してくれる）
+3. 要件がまとまったら GitHub Issue を作成
+4. 承認すると、ブランチを切って実装 → PR を作成
+
+これにより **「要望を伝えるだけで、AI が Issue 作成から実装・PR 作成まで一気通貫でやってくれる」** という開発サイクルが回ります。AI 秘書が自分自身を改善していく仕組みです。
+
+設定例:
+
+```bash
+# .env.development に追加
+SLACK_CHANNEL_2=C02YYYYYY
+SLACK_CHANNEL_2_NAME=feedback
+SLACK_CHANNEL_2_WORKDIR=/path/to/this/repo  # このリポジトリ自体を指定
+```
+
+`config/prompts/channel_2.txt` にフィードバック用のプロンプトを書けば完成です。
+
 ## アーキテクチャ
 
 ```
