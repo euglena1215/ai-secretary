@@ -212,7 +212,11 @@ SLACK_CHANNEL_2_NAME=feedback
 SLACK_CHANNEL_2_WORKDIR=/path/to/this/repo  # このリポジトリ自体を指定
 ```
 
-`config/prompts/channel_2.txt` にフィードバック用のプロンプトを書けば完成です。
+`config/prompts/channel_2.txt` にフィードバック用のプロンプトを書けば完成です。サンプルとして [`config/prompts/feedback_example.txt`](config/prompts/feedback_example.txt) を用意しているので、コピーして使ってください:
+
+```bash
+cp config/prompts/feedback_example.txt config/prompts/channel_2.txt
+```
 
 ## アーキテクチャ
 
