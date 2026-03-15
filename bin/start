@@ -29,11 +29,4 @@ bot = SlackBot.new(
   active_reaction_store: active_reaction_store
 )
 
-Signal.trap("TERM") do
-  Thread.new do
-    bot.shutdown
-    exit 0
-  end
-end
-
 bot.start

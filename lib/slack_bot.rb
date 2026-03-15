@@ -8,28 +8,9 @@ require "tmpdir"
 require "fileutils"
 require_relative "slack_mrkdwn_converter"
 
-# SlackSocketModeBot に graceful shutdown 用の close メソッドを追加
-module SlackSocketModeBotGracefulShutdown
-  def close
-    @shutting_down = true
-    @conns.each(&:close)
-  end
-
-  private
-
-  def add_connection(callback)
-    return if @shutting_down
-
-    super
-  end
-end
-SlackSocketModeBot.prepend(SlackSocketModeBotGracefulShutdown)
-
 class SlackBot
   SUPPORTED_MIMETYPES = %w[image/jpeg image/png image/gif image/webp application/pdf].freeze
   PROCESSING_REACTIONS = %w[eyes hourglass_flowing_sand].freeze
-  MAX_CONCURRENCY = 5
-  GRACEFUL_SHUTDOWN_TIMEOUT = 1860 # 31分
 
   def initialize(bot_token:, app_token:, claude_executor:, session_store:, channel_router:, event_deduplicator:, pending_notification_store:, active_reaction_store:)
     @logger = Logger.new($stdout)
@@ -39,10 +20,6 @@ class SlackBot
     @event_deduplicator = event_deduplicator
     @pending_notification_store = pending_notification_store
     @active_reaction_store = active_reaction_store
-    @semaphore_mutex = Mutex.new
-    @semaphore_cond = ConditionVariable.new
-    @active_threads = 0
-    @shutting_down = false
 
     Slack.configure do |config|
       config.token = bot_token
@@ -63,23 +40,6 @@ class SlackBot
     send_pending_notifications
     cleanup_active_reactions
     @bot.run
-  rescue IOError, Errno::EINVAL => e
-    if @shutting_down
-      @logger.info("Socket Mode loop terminated during shutdown.")
-    else
-      raise
-    end
-  end
-
-  def shutdown
-    @logger.info("Graceful shutdown initiated...")
-    @shutting_down = true
-
-    @bot.close
-    @logger.info("Socket Mode connections closed. No longer accepting new messages.")
-
-    wait_for_active_threads
-    @logger.info("Graceful shutdown complete.")
   end
 
   private
@@ -104,11 +64,6 @@ class SlackBot
 
   def handle_event(data)
     return unless data[:type] == "events_api"
-
-    if @shutting_down
-      @logger.info("Shutting down: ignoring new event")
-      return
-    end
 
     event_id = data[:payload][:event_id]
     event = data[:payload][:event]
@@ -136,8 +91,6 @@ class SlackBot
   end
 
   def process_message(event)
-    acquire_semaphore
-
     channel_id = event[:channel]
     thread_ts = event[:thread_ts] || event[:ts]
     text = event[:text] || ""
@@ -202,39 +155,6 @@ class SlackBot
     notify_error(event, e) if event
   ensure
     FileUtils.rm_rf(tmpdir) if tmpdir
-    release_semaphore
-  end
-
-  def wait_for_active_threads
-    deadline = Time.now + GRACEFUL_SHUTDOWN_TIMEOUT
-    @semaphore_mutex.synchronize do
-      while @active_threads > 0
-        remaining = deadline - Time.now
-        if remaining <= 0
-          @logger.warn("Graceful shutdown timeout (#{GRACEFUL_SHUTDOWN_TIMEOUT}s). Forcing exit with #{@active_threads} active thread(s).")
-          return
-        end
-        @logger.info("Waiting for #{@active_threads} active thread(s) to finish (timeout in #{remaining.to_i}s)...")
-        @semaphore_cond.wait(@semaphore_mutex, remaining)
-      end
-    end
-  end
-
-  def acquire_semaphore
-    @semaphore_mutex.synchronize do
-      while @active_threads >= MAX_CONCURRENCY
-        @logger.info("Concurrency limit reached (#{MAX_CONCURRENCY}), waiting for a slot...")
-        @semaphore_cond.wait(@semaphore_mutex)
-      end
-      @active_threads += 1
-    end
-  end
-
-  def release_semaphore
-    @semaphore_mutex.synchronize do
-      @active_threads -= 1
-      @semaphore_cond.signal
-    end
   end
 
   def download_files(files, tmpdir)
