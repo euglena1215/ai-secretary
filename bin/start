@@ -7,7 +7,6 @@ require_relative "../lib/claude_executor"
 require_relative "../lib/session_store"
 require_relative "../lib/channel_router"
 require_relative "../lib/event_deduplicator"
-require_relative "../lib/pending_notification_store"
 require_relative "../lib/active_reaction_store"
 require_relative "../lib/slack_bot"
 
@@ -15,7 +14,6 @@ claude_executor = ClaudeExecutor.new
 session_store = SessionStore.new
 channel_router = ChannelRouter.new
 event_deduplicator = EventDeduplicator.new
-pending_notification_store = PendingNotificationStore.new
 active_reaction_store = ActiveReactionStore.new
 
 bot = SlackBot.new(
@@ -25,7 +23,6 @@ bot = SlackBot.new(
   session_store: session_store,
   channel_router: channel_router,
   event_deduplicator: event_deduplicator,
-  pending_notification_store: pending_notification_store,
   active_reaction_store: active_reaction_store
 )
 

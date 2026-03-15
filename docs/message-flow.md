@@ -171,8 +171,6 @@ bin/start 実行
   │   ├─ SQLite テーブルの自動作成
   │   └─ チャンネルルーティングの構築
   │
-  ├─ 未送信メッセージの送信（PendingNotificationStore）
-  │
   ├─ 孤立リアクションのクリーンアップ（ActiveReactionStore）
   │
   └─ Socket Mode でイベントループ開始

@@ -12,13 +12,12 @@ class SlackBot
   SUPPORTED_MIMETYPES = %w[image/jpeg image/png image/gif image/webp application/pdf].freeze
   PROCESSING_REACTIONS = %w[eyes hourglass_flowing_sand].freeze
 
-  def initialize(bot_token:, app_token:, claude_executor:, session_store:, channel_router:, event_deduplicator:, pending_notification_store:, active_reaction_store:)
+  def initialize(bot_token:, app_token:, claude_executor:, session_store:, channel_router:, event_deduplicator:, active_reaction_store:)
     @logger = Logger.new($stdout)
     @claude_executor = claude_executor
     @session_store = session_store
     @channel_router = channel_router
     @event_deduplicator = event_deduplicator
-    @pending_notification_store = pending_notification_store
     @active_reaction_store = active_reaction_store
 
     Slack.configure do |config|
@@ -37,30 +36,11 @@ class SlackBot
 
   def start
     @logger.info("Connecting to Slack via Socket Mode...")
-    send_pending_notifications
     cleanup_active_reactions
     @bot.run
   end
 
   private
-
-  def send_pending_notifications
-    notifications = @pending_notification_store.read_all
-    return if notifications.empty?
-
-    @logger.info("Found #{notifications.size} pending notification(s), sending...")
-    notifications.each do |n|
-      @web_client.chat_postMessage(
-        channel: n["channel_id"],
-        text: n["message"],
-        thread_ts: n["thread_ts"]
-      )
-      @logger.info("Sent pending notification to channel=#{n['channel_id']} thread=#{n['thread_ts']}")
-    rescue => e
-      @logger.error("Failed to send pending notification: #{e.message}")
-    end
-    @pending_notification_store.clear!
-  end
 
   def handle_event(data)
     return unless data[:type] == "events_api"
